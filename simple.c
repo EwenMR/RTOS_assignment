@@ -36,7 +36,7 @@ module_param(simple_major, int, S_IRUGO);
 module_param(simple_minor, int, S_IRUGO);
 module_param(memsize, int, S_IRUGO);
 
-MODULE_AUTHOR("Antonio Sgorbissa");
+MODULE_AUTHOR("Ewen Gay-Semenkoff");
 MODULE_LICENSE("Dual BSD/GPL");
 
 

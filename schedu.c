@@ -140,7 +140,7 @@ main()
 
       		WCET[i]= 1000000000*(time_2.tv_sec - time_1.tv_sec)
 			       +(time_2.tv_nsec-time_1.tv_nsec);
-      		printf("\nWorst Case Execution Time %d=%f \n", i, WCET[i]);
+      		// printf("\nWorst Case Execution Time %d=%f \n", i, WCET[i]);
 			fflush(stdout);
 
     	}
@@ -160,7 +160,7 @@ main()
 	//check the sufficient conditions: if they are not satisfied, exit  
   	if (U > Ulub)
     	{
-      		printf("\n U=%lf Ulub=%lf Non schedulable Task Set", U, Ulub);
+      		// printf("\n U=%lf Ulub=%lf Non schedulable Task Set", U, Ulub);
       		return(-1);
     	}
   	printf("\n U=%lf Ulub=%lf Scheduable Task Set", U, Ulub);
@@ -403,67 +403,67 @@ void task4_code()
 	close(fd);
 }
 
-
-void *task4(void *)
-{
-    // set thread affinity, that is the processor on which threads shall run
-    cpu_set_t cset;
-    CPU_ZERO(&cset);
-    CPU_SET(0, &cset);
-    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
-	int is_aperiodic_task_ready = 0;
-
-    // add an infinite loop
-    while (1)
-    {
-        // wait for the proper condition to be signalled
-        // See below why mutexes have been commented
-        pthread_mutex_lock(&mutex_task_4);
-
-        // Use a while loop to handle spurious wake-ups
-        while (!is_aperiodic_task_ready)
-        {
-            pthread_cond_wait(&cond_task_4, &mutex_task_4);
-        }
-
-        // reset the condition for the next iteration
-        is_aperiodic_task_ready = 0;
-
-        // execute the task code
-        task4_code();
-        pthread_mutex_unlock(&mutex_task_4);
-    }
-}
-
-
-
-
-
-// void *task4( void *)
+// //GPT CODE!!!!!
+// void *task4(void *)
 // {
-// 	// set thread affinity, that is the processor on which threads shall run
-// 	cpu_set_t cset;
-// 	CPU_ZERO (&cset);
-// 	CPU_SET(0, &cset);
-// 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
+//     // set thread affinity, that is the processor on which threads shall run
+//     cpu_set_t cset;
+//     CPU_ZERO(&cset);
+//     CPU_SET(0, &cset);
+//     pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
+// 	int is_aperiodic_task_ready = 0;
 
-// 	//add an infinite loop 
-// 	while (1)
-//     	{
-// 		// wait for the proper condition to be signalled
-// 		// See below why mutexes have been commented
-	
-// 		pthread_mutex_lock(&mutex_task_4);
-// 		pthread_cond_wait(&cond_task_4, &mutex_task_4);
-// 		task4_code();
-// 		// pthread_mutex_unlock(&mutex_task_4);
+//     // add an infinite loop
+//     while (1)
+//     {
+//         // wait for the proper condition to be signalled
+//         // See below why mutexes have been commented
+//         pthread_mutex_lock(&mutex_task_4);
 
-// 		// execute the task code
-// 		// pthread_mutex_lock(&mutex_semaphore);
-//  		// task4_code();
-// 		pthread_mutex_unlock(&mutex_task_4);
-// 	}
+//         // Use a while loop to handle spurious wake-ups
+//         while (!is_aperiodic_task_ready)
+//         {
+//             pthread_cond_wait(&cond_task_4, &mutex_task_4);
+//         }
+
+//         // reset the condition for the next iteration
+//         is_aperiodic_task_ready = 0;
+
+//         // execute the task code
+//         task4_code();
+//         pthread_mutex_unlock(&mutex_task_4);
+//     }
 // }
+
+
+
+
+
+void *task4( void *)
+{
+	// set thread affinity, that is the processor on which threads shall run
+	cpu_set_t cset;
+	CPU_ZERO (&cset);
+	CPU_SET(0, &cset);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
+
+	//add an infinite loop 
+	while (1)
+    	{
+		// wait for the proper condition to be signalled
+		// See below why mutexes have been commented
+	
+		// pthread_mutex_lock(&mutex_task_4);
+		pthread_cond_wait(&cond_task_4, &mutex_task_4);
+		task4_code();
+		// pthread_mutex_unlock(&mutex_task_4);
+
+		// execute the task code
+		// pthread_mutex_lock(&mutex_semaphore);
+ 		// task4_code();
+		// pthread_mutex_unlock(&mutex_task_4);
+	}
+}
 
 
 
@@ -489,7 +489,7 @@ void scrivere(int fd, const char *msg){
 
 // Function to open the driver module
 int aprire_driver(){
-	int driver_fd = open("/dev/simple", O_RDWR);
+	int driver_fd = open("/dev/tty", O_RDWR);
 	if(driver_fd == -1){
 		perror("Non sei come aprire il driver");
 		exit(-1);
