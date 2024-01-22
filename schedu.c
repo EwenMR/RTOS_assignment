@@ -10,6 +10,10 @@
 #include <math.h>
 #include <sys/types.h>
 #include <sys/types.h>
+#include <fcntl.h>
+#include <string.h>
+#include <semaphore.h>
+#include <sched.h>
 
 #define INNERLOOP 1000
 #define OUTERLOOP 100
@@ -32,12 +36,22 @@ void *task3( void *);
 //aperiodic task
 void *task4( void *);
 
+void do_nothing();
+void scrivere(int fd, const char *msg);
+int aprire_driver();
+
+
+
+
+
 // initialization of mutexes and conditions (only for aperiodic scheduling)
 pthread_mutex_t mutex_task_4 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_task_4 = PTHREAD_COND_INITIALIZER;
 
 
 //ADD MUTEX???? WE WILL USE
+pthread_mutex_t mutex_semaphore = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutexattr_t mutexattr_semaphore;
 
 long int periods[NTASKS];
 struct timespec next_arrival_time[NTASKS];
@@ -50,6 +64,10 @@ int missed_deadlines[NTASKS];
 int
 main()
 {
+	int is_aperiodic_task_ready = 1;
+	pthread_cond_signal(&cond_task_4);
+	
+
   	// set task periods in nanoseconds
 	//the first task has period 300 millisecond
 	//the second task has period 500 millisecond
@@ -70,13 +88,29 @@ main()
   	// superuser). Check that the main thread is executed with superuser privileges
 	// before doing anything else.
 
-  	if (getuid() == 0)
-    		pthread_setschedparam(pthread_self(),SCHED_FIFO,&priomax);
+  	if (getuid() == 0){
+    		if (pthread_setschedparam(pthread_self(),SCHED_FIFO,&priomax) != 0){
+				perror("error setting scheduling parameters");
+				exit(EXIT_FAILURE);
+			}
+	} else {
+		fprintf(stderr, "You need root priveleges to set scheduling parameters\n Please switch to root user");
+		exit(EXIT_FAILURE);
+	}
+
 
   	// execute all tasks in standalone modality in order to measure execution times
   	// (use gettimeofday). Use the computed values to update the worst case execution
   	// time of each task.
 
+	pthread_mutexattr_init(&mutexattr_semaphore);
+	pthread_mutexattr_setprotocol(&mutexattr_semaphore, PTHREAD_PRIO_PROTECT);
+	pthread_mutexattr_setprioceiling(&mutexattr_semaphore, priomin.sched_priority + NTASKS);
+	pthread_mutex_init(&mutex_semaphore, &mutexattr_semaphore);
+
+
+	// string that will be written on the file
+	char message[100];
  	int i;
   	for (i =0; i < NTASKS; i++)
     	{
@@ -107,16 +141,21 @@ main()
       		WCET[i]= 1000000000*(time_2.tv_sec - time_1.tv_sec)
 			       +(time_2.tv_nsec-time_1.tv_nsec);
       		printf("\nWorst Case Execution Time %d=%f \n", i, WCET[i]);
+			fflush(stdout);
+
     	}
 
     	// compute U
 	double U = WCET[0]/periods[0]+WCET[1]/periods[1]+WCET[2]/periods[2];
 
     	// compute Ulub by considering the fact that we have harmonic relationships between periods
-	double Ulub = 1;
+	// double Ulub = 1;
     	
 	//if there are no harmonic relationships, use the following formula instead
-	//double Ulub = NPERIODICTASKS*(pow(2.0,(1.0/NPERIODICTASKS)) -1);
+	double Ulub = NPERIODICTASKS*(pow(2.0,(1.0/NPERIODICTASKS)) -1);
+// MODIFY OR APERIODIC
+
+
 	
 	//check the sufficient conditions: if they are not satisfied, exit  
   	if (U > Ulub)
@@ -126,7 +165,8 @@ main()
     	}
   	printf("\n U=%lf Ulub=%lf Scheduable Task Set", U, Ulub);
   	fflush(stdout);
-  	sleep(5);
+	sleep(5);
+
 
   	// set the minimum priority to the current thread: this is now required because 
 	//we will assign higher priorities to periodic threads to be soon created
@@ -147,7 +187,7 @@ main()
       		pthread_attr_setinheritsched(&(attributes[i]), PTHREAD_EXPLICIT_SCHED);
       
 		// set the attributes to set the SCHED_FIFO policy (pthread_attr_setschedpolicy)
-		pthread_attr_setschedpolicy(&(attributes[i]), SCHED_FIFO);
+			pthread_attr_setschedpolicy(&(attributes[i]), SCHED_FIFO);
 
 		//properly set the parameters to assign the priority inversely proportional 
 		//to the period
@@ -188,24 +228,30 @@ main()
        		missed_deadlines[i] = 0;
     	}
 
-	
+	printf("About to start creating threads here...");
+	fflush(stdout);
 
 	// create all threads(pthread_create)
   	iret[0] = pthread_create( &(thread_id[0]), &(attributes[0]), task1, NULL);
   	iret[1] = pthread_create( &(thread_id[1]), &(attributes[1]), task2, NULL);
   	iret[2] = pthread_create( &(thread_id[2]), &(attributes[2]), task3, NULL);
    	iret[3] = pthread_create( &(thread_id[3]), &(attributes[3]), task4, NULL);
+	printf("all threads created.");
+	fflush(stdout);
 
   	// join all threads (pthread_join)
   	pthread_join( thread_id[0], NULL);
   	pthread_join( thread_id[1], NULL);
   	pthread_join( thread_id[2], NULL);
+	printf("all thread joined");
+	fflush(stdout);
 
   	// set the next arrival time for each task. This is not the beginning of the first
 	// period, but the end of the first period and beginning of the next one. 
-  	for (i = 0; i < NTASKS; i++)
+  	
+	for (i = 0; i < NTASKS; i++)
     	{
-      		printf ("\nMissed Deadlines Task %d=%d", i, missed_deadlines[i]);
+      	printf ("\nMissed Deadlines Task %d=%d", i, missed_deadlines[i]);
 		fflush(stdout);
     	}
   	exit(0);
@@ -214,49 +260,19 @@ main()
 // application specific task_1 code
 void task1_code()
 {
-	//print the id of the current task
-  	printf(" 1[ "); fflush(stdout);
+	const char *str_1 = "[1";
+	const char *str_2 = "1]";
+	int fd;
 
-	//this double loop with random computation is only required to waste time
-	int i,j;
-	double uno;
-  	for (i = 0; i < OUTERLOOP; i++)
-    	{
-      		for (j = 0; j < INNERLOOP; j++)
-		{
-			uno = rand()*rand()%10;
-    		}
-  	}
+	fd = aprire_driver();
+	scrivere(fd, str_1);
+	close(fd);
 
-  	// when the random variable uno=0, then aperiodic task 5 must
-  	// be executed
-  	if (uno == 0)
-    	{
-      		printf(":ex(4)");fflush(stdout);
-	// In theory, we should protect conditions using mutexes. However, in a real-time application, something undesirable may happen.
-	// Indeed, when task1 takes the mutex and sends the condition, task4 is executed and is given the mutex by the kernel. Which means
-	// that task1 (higher priority) would be blocked waiting for task4 to finish (lower priority). This is of course unacceptable,
-	// as it would produced a priority inversion. For this reason, we are not putting mutexes here. A better solution should be found.
+	do_nothing();
 
-//      		pthread_mutex_lock(&mutex_task_4);
-      		pthread_cond_signal(&cond_task_4);
-//      		pthread_mutex_unlock(&mutex_task_4);
-	}
-
-  	// when the random variable uno=1, then aperiodic task 5 must
-  	// be executed
-  	if (uno == 1)
-    	{
-      		printf(":ex(5)");fflush(stdout);
-
-	// See below why mutexes have been commented
-//      		pthread_mutex_lock(&mutex_task_5);
-      		pthread_cond_signal(&cond_task_5);
-//      		pthread_mutex_unlock(&mutex_task_5);
-    	}
-  
-  	//print the id of the current task
-  	printf(" ]1 "); fflush(stdout);
+	fd = aprire_driver();
+	scrivere(fd, str_2);
+	close(fd);
 }
 
 //thread code for task_1 (used only for temporization)
@@ -272,12 +288,9 @@ void *task1( void *ptr)
   	int i=0;
   	for (i=0; i < 100; i++)
     	{
-      		// execute application specific code
+		pthread_mutex_lock(&mutex_semaphore);
 		task1_code();
-
-		// it would be nice to check if we missed a deadline here... why don't
-		// you try by yourself?
-
+		pthread_mutex_unlock(&mutex_semaphore);
 		// sleep until the end of the current period (which is also the start of the
 		// new one
 		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[0], NULL);
@@ -289,23 +302,24 @@ void *task1( void *ptr)
 		next_arrival_time[0].tv_nsec= next_arrival_nanoseconds%1000000000;
 		next_arrival_time[0].tv_sec= next_arrival_time[0].tv_sec + next_arrival_nanoseconds/1000000000;
     	}
+	return NULL;
 }
 
 void task2_code()
 {
-	//print the id of the current task
-  	printf(" 2[ "); fflush(stdout);
-	int i,j;
-	double uno;
-  	for (i = 0; i < OUTERLOOP; i++)
-    	{
-      		for (j = 0; j < INNERLOOP; j++)
-		{
-			uno = rand()*rand()%10;
-		}
-    	}
-	//print the id of the current task
-  	printf(" ]2 "); fflush(stdout);
+  	const char *str_1 = "[2";
+	const char *str_2 = "2]";
+	int fd;
+
+	fd = aprire_driver();
+	scrivere(fd, str_1);
+	close(fd);
+
+	do_nothing();
+
+	fd = aprire_driver();
+	scrivere(fd, str_2);
+	close(fd);
 }
 
 
@@ -320,28 +334,33 @@ void *task2( void *ptr )
 	int i=0;
   	for (i=0; i < 100; i++)
     	{
-      		task2_code();
+			pthread_mutex_lock(&mutex_semaphore);
+			task2_code();
+			pthread_mutex_unlock(&mutex_semaphore);
 
-		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[1], NULL);
-		long int next_arrival_nanoseconds = next_arrival_time[1].tv_nsec + periods[1];
-		next_arrival_time[1].tv_nsec= next_arrival_nanoseconds%1000000000;
-		next_arrival_time[1].tv_sec= next_arrival_time[1].tv_sec + next_arrival_nanoseconds/1000000000;
+			clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[1], NULL);
+			long int next_arrival_nanoseconds = next_arrival_time[1].tv_nsec + periods[1];
+			next_arrival_time[1].tv_nsec= next_arrival_nanoseconds%1000000000;
+			next_arrival_time[1].tv_sec= next_arrival_time[1].tv_sec + next_arrival_nanoseconds/1000000000;
     	}
+	return NULL;
 }
 
 void task3_code()
 {
-	//print the id of the current task
-  	printf(" 3[ "); fflush(stdout);
-	int i,j;
-	double uno;
-  	for (i = 0; i < OUTERLOOP; i++)
-    	{
-      		for (j = 0; j < INNERLOOP; j++);		
-			double uno = rand()*rand()%10;
-    	}
-	//print the id of the current task
-  	printf(" ]3 "); fflush(stdout);
+	const char *str_1 = "[3";
+	const char *str_2 = "3]";
+	int fd;
+
+	fd = aprire_driver();
+	scrivere(fd, str_1);
+	close(fd);
+
+	do_nothing();
+
+	fd = aprire_driver();
+	scrivere(fd, str_2);
+	close(fd);
 }
 
 void *task3( void *ptr)
@@ -355,49 +374,138 @@ void *task3( void *ptr)
 	int i=0;
   	for (i=0; i < 100; i++)
     	{
+			pthread_mutex_lock(&mutex_semaphore);
       		task3_code();
+			pthread_mutex_unlock(&mutex_semaphore);
 
-		clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[2], NULL);
-		long int next_arrival_nanoseconds = next_arrival_time[2].tv_nsec + periods[2];
-		next_arrival_time[2].tv_nsec= next_arrival_nanoseconds%1000000000;
-		next_arrival_time[2].tv_sec= next_arrival_time[2].tv_sec + next_arrival_nanoseconds/1000000000;
+			clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &next_arrival_time[2], NULL);
+			long int next_arrival_nanoseconds = next_arrival_time[2].tv_nsec + periods[2];
+			next_arrival_time[2].tv_nsec= next_arrival_nanoseconds%1000000000;
+			next_arrival_time[2].tv_sec= next_arrival_time[2].tv_sec + next_arrival_nanoseconds/1000000000;
     }
+	return NULL;
 }
 
 void task4_code()
 {
-  	printf(" 4[ "); fflush(stdout);
-	for (int i = 0; i < OUTERLOOP; i++)
-    	{
-      		for (int j = 0; j < INNERLOOP; j++)
-			double uno = rand()*rand();
-    	}
-  	printf(" ]4 "); fflush(stdout);
-  	fflush(stdout);
+  	const char *str_1 = "[4";
+	const char *str_2 = "4]";
+	int fd;
+
+	fd = aprire_driver();
+	scrivere(fd, str_1);
+	close(fd);
+
+	do_nothing();
+
+	fd = aprire_driver();
+	scrivere(fd, str_2);
+	close(fd);
 }
 
-void *task4( void *)
-{
-	// set thread affinity, that is the processor on which threads shall run
-	cpu_set_t cset;
-	CPU_ZERO (&cset);
-	CPU_SET(0, &cset);
-	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
 
-	//add an infinite loop 
-	while (1)
-    	{
-		// wait for the proper condition to be signalled
-		// See below why mutexes have been commented
-//		pthread_mutex_lock(&mutex_task_4);
-		pthread_cond_wait(&cond_task_4, &mutex_task_4);
-//		pthread_mutex_unlock(&mutex_task_4);
-		// execute the task code
- 		task4_code();
+void *task4(void *)
+{
+    // set thread affinity, that is the processor on which threads shall run
+    cpu_set_t cset;
+    CPU_ZERO(&cset);
+    CPU_SET(0, &cset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
+	int is_aperiodic_task_ready = 0;
+
+    // add an infinite loop
+    while (1)
+    {
+        // wait for the proper condition to be signalled
+        // See below why mutexes have been commented
+        pthread_mutex_lock(&mutex_task_4);
+
+        // Use a while loop to handle spurious wake-ups
+        while (!is_aperiodic_task_ready)
+        {
+            pthread_cond_wait(&cond_task_4, &mutex_task_4);
+        }
+
+        // reset the condition for the next iteration
+        is_aperiodic_task_ready = 0;
+
+        // execute the task code
+        task4_code();
+        pthread_mutex_unlock(&mutex_task_4);
+    }
+}
+
+
+
+
+
+// void *task4( void *)
+// {
+// 	// set thread affinity, that is the processor on which threads shall run
+// 	cpu_set_t cset;
+// 	CPU_ZERO (&cset);
+// 	CPU_SET(0, &cset);
+// 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
+
+// 	//add an infinite loop 
+// 	while (1)
+//     	{
+// 		// wait for the proper condition to be signalled
+// 		// See below why mutexes have been commented
+	
+// 		pthread_mutex_lock(&mutex_task_4);
+// 		pthread_cond_wait(&cond_task_4, &mutex_task_4);
+// 		task4_code();
+// 		// pthread_mutex_unlock(&mutex_task_4);
+
+// 		// execute the task code
+// 		// pthread_mutex_lock(&mutex_semaphore);
+//  		// task4_code();
+// 		pthread_mutex_unlock(&mutex_task_4);
+// 	}
+// }
+
+
+
+
+
+
+
+
+// FUNCTIONS TO MAKE THE CODE EASIER TO READ :)
+// opening the driver module, writing a message and wasting time
+
+
+
+// Function to write to a file
+void scrivere(int fd, const char *msg){
+	ssize_t size = write(fd, msg, sizeof(msg));
+	printf("%s", msg);
+	if (size == -1){
+		perror("you don't know how to write properly");
+		exit(1);
 	}
 }
 
+// Function to open the driver module
+int aprire_driver(){
+	int driver_fd = open("/dev/simple", O_RDWR);
+	if(driver_fd == -1){
+		perror("Non sei come aprire il driver");
+		exit(-1);
+	}
+	return driver_fd;
+}
+
+// Function to waste time, fare niente
 void do_nothing(){
-	for(int i =0; i < OUTERLOOP; i++)
+	double nada;
+	for(int i =0; i < OUTERLOOP; i++){
+		for(int j = 0; j < INNERLOOP; j++)
+		nada = rand()*rand();
+	}
+}
+
+
 
 
