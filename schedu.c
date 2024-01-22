@@ -63,10 +63,7 @@ int missed_deadlines[NTASKS];
 
 int
 main()
-{
-	int is_aperiodic_task_ready = 1;
-	pthread_cond_signal(&cond_task_4);
-	
+{	
 
   	// set task periods in nanoseconds
 	//the first task has period 300 millisecond
@@ -489,7 +486,7 @@ void scrivere(int fd, const char *msg){
 
 // Function to open the driver module
 int aprire_driver(){
-	int driver_fd = open("/dev/tty", O_RDWR);
+	int driver_fd = open("/dev/simple", O_RDWR);
 	if(driver_fd == -1){
 		perror("Non sei come aprire il driver");
 		exit(-1);
