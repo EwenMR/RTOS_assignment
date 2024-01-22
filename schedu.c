@@ -107,9 +107,9 @@ main()
 
 
 	// string that will be written on the file
-	char message[100];
- 	int i;
-  	for (i =0; i < NTASKS; i++)
+	
+ 	
+  	for (int i =0; i < NTASKS; i++)
     	{
 
 		// initializa time_1 and time_2 required to read the clock
@@ -137,8 +137,9 @@ main()
 
       		WCET[i]= 1000000000*(time_2.tv_sec - time_1.tv_sec)
 			       +(time_2.tv_nsec-time_1.tv_nsec);
-      		// printf("\nWorst Case Execution Time %d=%f \n", i, WCET[i]);
+      		printf("\nWorst Case Execution Time %d=%f \n", i, WCET[i]);
 			fflush(stdout);
+			char message[100];
 
     	}
 
@@ -146,10 +147,10 @@ main()
 	double U = WCET[0]/periods[0]+WCET[1]/periods[1]+WCET[2]/periods[2];
 
     	// compute Ulub by considering the fact that we have harmonic relationships between periods
-	// double Ulub = 1;
+	double Ulub = 1;
     	
 	//if there are no harmonic relationships, use the following formula instead
-	double Ulub = NPERIODICTASKS*(pow(2.0,(1.0/NPERIODICTASKS)) -1);
+	// double Ulub = NPERIODICTASKS*(pow(2.0,(1.0/NPERIODICTASKS)) -1);
 // MODIFY OR APERIODIC
 
 
@@ -164,6 +165,8 @@ main()
   	fflush(stdout);
 	sleep(5);
 
+	char message[100];
+
 
   	// set the minimum priority to the current thread: this is now required because 
 	//we will assign higher priorities to periodic threads to be soon created
@@ -174,7 +177,7 @@ main()
 
   
   	// set the attributes of each task, including scheduling policy and priority
-  	for (i =0; i < NPERIODICTASKS; i++)
+  	for (int i =0; i < NPERIODICTASKS; i++)
     	{
 		//initializa the attribute structure of task i
       		pthread_attr_init(&(attributes[i]));
@@ -216,7 +219,7 @@ main()
 
   	// set the next arrival time for each task. This is not the beginning of the first
 	// period, but the end of the first period and beginning of the next one. 
-  	for (i = 0; i < NPERIODICTASKS; i++)
+  	for (int i = 0; i < NPERIODICTASKS; i++)
     	{
 		long int next_arrival_nanoseconds = time_1.tv_nsec + periods[i];
 		//then we compute the end of the first period and beginning of the next one
@@ -246,7 +249,7 @@ main()
   	// set the next arrival time for each task. This is not the beginning of the first
 	// period, but the end of the first period and beginning of the next one. 
   	
-	for (i = 0; i < NTASKS; i++)
+	for (int i = 0; i < NTASKS; i++)
     	{
       	printf ("\nMissed Deadlines Task %d=%d", i, missed_deadlines[i]);
 		fflush(stdout);
