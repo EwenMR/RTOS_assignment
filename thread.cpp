@@ -247,17 +247,12 @@ void task1_code()
 {
 	const char *str_1 = "[1";
 	const char *str_2 = "1]";
-	int fd;
 
-	fd = aprire_driver();
-	scrivere(fd, str_1);
-	close(fd);
+	open_write(str_1);
 
 	do_nothing();
 
-	fd = aprire_driver();
-	scrivere(fd, str_2);
-	close(fd);
+	open_write(str_2);
 }
 
 //thread code for task_1 (used only for temporization)
@@ -294,17 +289,12 @@ void task2_code()
 {
   	const char *str_1 = "[2";
 	const char *str_2 = "2]";
-	int fd;
 
-	fd = aprire_driver();
-	scrivere(fd, str_1);
-	close(fd);
+	open_write(str_1);
 
 	do_nothing();
 
-	fd = aprire_driver();
-	scrivere(fd, str_2);
-	close(fd);
+	open_write(str_2);
 }
 
 
@@ -335,17 +325,12 @@ void task3_code()
 {
 	const char *str_1 = "[3";
 	const char *str_2 = "3]";
-	int fd;
-
-	fd = aprire_driver();
-	scrivere(fd, str_1);
-	close(fd);
+	
+	open_write(str_1);
 
 	do_nothing();
 
-	fd = aprire_driver();
-	scrivere(fd, str_2);
-	close(fd);
+	open_write(str_2);
 }
 
 void *task3( void *ptr)
@@ -375,18 +360,13 @@ void task4_code()
 {
   	const char *str_1 = "[4";
 	const char *str_2 = "4]";
-	int fd;
 
-	fd = aprire_driver();
-	scrivere(fd, str_1);
-	close(fd);
+	open_write(str_1);
 
 	pthread_cond_signal(&cond_task_4);
 	do_nothing();
 
-	fd = aprire_driver();
-	scrivere(fd, str_2);
-	close(fd);
+	open_write(str_2);
 }
 
 
@@ -448,6 +428,10 @@ void do_nothing(){
 	}
 }
 
-
+void open_write(const char *str){
+	int fd = aprire_driver();
+	scrivere(fd, str);
+	close(fd);
+}
 
 
