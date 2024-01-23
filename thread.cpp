@@ -1,4 +1,4 @@
-//compile with: g++ -lpthread <sourcename> -o <executablename>
+//compile with: g++ -lpthread thread.cpp -o thread
 
 //This exercise show how to schedule threads with Rate Monotonic with aperiodic tasks in background
 
@@ -36,22 +36,18 @@ void *task3( void *);
 //aperiodic task
 void *task4( void *);
 
+// Decalre custom functions
 void do_nothing();
 void scrivere(int fd, const char *msg);
 int aprire_driver();
-
-
-
-
 
 // initialization of mutexes and conditions (only for aperiodic scheduling)
 pthread_mutex_t mutex_task_4 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_task_4 = PTHREAD_COND_INITIALIZER;
 
-
-//ADD MUTEX???? WE WILL USE
 pthread_mutex_t mutex_semaphore = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutexattr_t mutexattr_semaphore;
+
 
 long int periods[NTASKS];
 struct timespec next_arrival_time[NTASKS];
@@ -147,11 +143,10 @@ main()
 	double U = WCET[0]/periods[0]+WCET[1]/periods[1]+WCET[2]/periods[2];
 
     	// compute Ulub by considering the fact that we have harmonic relationships between periods
-	double Ulub = 1;
+	// double Ulub = 1;
     	
 	//if there are no harmonic relationships, use the following formula instead
-	// double Ulub = NPERIODICTASKS*(pow(2.0,(1.0/NPERIODICTASKS)) -1);
-// MODIFY OR APERIODIC
+	double Ulub = NPERIODICTASKS*(pow(2.0,(1.0/NPERIODICTASKS)) -1);
 
 
 	
@@ -164,8 +159,6 @@ main()
   	printf("\n U=%lf Ulub=%lf Scheduable Task Set", U, Ulub);
   	fflush(stdout);
 	sleep(5);
-
-	char message[100];
 
 
   	// set the minimum priority to the current thread: this is now required because 
@@ -236,15 +229,11 @@ main()
   	iret[1] = pthread_create( &(thread_id[1]), &(attributes[1]), task2, NULL);
   	iret[2] = pthread_create( &(thread_id[2]), &(attributes[2]), task3, NULL);
    	iret[3] = pthread_create( &(thread_id[3]), &(attributes[3]), task4, NULL);
-	printf("all threads created.");
-	fflush(stdout);
 
   	// join all threads (pthread_join)
   	pthread_join( thread_id[0], NULL);
   	pthread_join( thread_id[1], NULL);
   	pthread_join( thread_id[2], NULL);
-	printf("all thread joined");
-	fflush(stdout);
 
   	// set the next arrival time for each task. This is not the beginning of the first
 	// period, but the end of the first period and beginning of the next one. 
@@ -302,7 +291,7 @@ void *task1( void *ptr)
 		next_arrival_time[0].tv_nsec= next_arrival_nanoseconds%1000000000;
 		next_arrival_time[0].tv_sec= next_arrival_time[0].tv_sec + next_arrival_nanoseconds/1000000000;
     	}
-	return NULL;
+	
 }
 
 void task2_code()
@@ -343,7 +332,7 @@ void *task2( void *ptr )
 			next_arrival_time[1].tv_nsec= next_arrival_nanoseconds%1000000000;
 			next_arrival_time[1].tv_sec= next_arrival_time[1].tv_sec + next_arrival_nanoseconds/1000000000;
     	}
-	return NULL;
+	
 }
 
 void task3_code()
@@ -383,7 +372,7 @@ void *task3( void *ptr)
 			next_arrival_time[2].tv_nsec= next_arrival_nanoseconds%1000000000;
 			next_arrival_time[2].tv_sec= next_arrival_time[2].tv_sec + next_arrival_nanoseconds/1000000000;
     }
-	return NULL;
+
 }
 
 void task4_code()
@@ -396,46 +385,13 @@ void task4_code()
 	scrivere(fd, str_1);
 	close(fd);
 
+	pthread_cond_signal(&cond_task_4);
 	do_nothing();
 
 	fd = aprire_driver();
 	scrivere(fd, str_2);
 	close(fd);
 }
-
-// //GPT CODE!!!!!
-// void *task4(void *)
-// {
-//     // set thread affinity, that is the processor on which threads shall run
-//     cpu_set_t cset;
-//     CPU_ZERO(&cset);
-//     CPU_SET(0, &cset);
-//     pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cset);
-// 	int is_aperiodic_task_ready = 0;
-
-//     // add an infinite loop
-//     while (1)
-//     {
-//         // wait for the proper condition to be signalled
-//         // See below why mutexes have been commented
-//         pthread_mutex_lock(&mutex_task_4);
-
-//         // Use a while loop to handle spurious wake-ups
-//         while (!is_aperiodic_task_ready)
-//         {
-//             pthread_cond_wait(&cond_task_4, &mutex_task_4);
-//         }
-
-//         // reset the condition for the next iteration
-//         is_aperiodic_task_ready = 0;
-
-//         // execute the task code
-//         task4_code();
-//         pthread_mutex_unlock(&mutex_task_4);
-//     }
-// }
-
-
 
 
 
@@ -450,18 +406,11 @@ void *task4( void *)
 	//add an infinite loop 
 	while (1)
     	{
-		// wait for the proper condition to be signalled
-		// See below why mutexes have been commented
-	
-		// pthread_mutex_lock(&mutex_task_4);
+		// wait for the proper condition to be signalled	
+		
 		pthread_cond_wait(&cond_task_4, &mutex_task_4);
 		task4_code();
-		// pthread_mutex_unlock(&mutex_task_4);
-
-		// execute the task code
-		// pthread_mutex_lock(&mutex_semaphore);
- 		// task4_code();
-		// pthread_mutex_unlock(&mutex_task_4);
+	
 	}
 }
 
@@ -471,11 +420,8 @@ void *task4( void *)
 
 
 
-
 // FUNCTIONS TO MAKE THE CODE EASIER TO READ :)
 // opening the driver module, writing a message and wasting time
-
-
 
 // Function to write to a file
 void scrivere(int fd, const char *msg){
