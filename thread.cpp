@@ -1,7 +1,5 @@
 //compile with: g++ -lpthread thread.cpp -o thread
 
-//This exercise show how to schedule threads with Rate Monotonic with aperiodic tasks in background
-
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -158,7 +156,7 @@ main()
     	}
   	printf("\n U=%lf Ulub=%lf Scheduable Task Set", U, Ulub);
   	fflush(stdout);
-	sleep(5);
+	sleep(1);
 
 
   	// set the minimum priority to the current thread: this is now required because 
@@ -180,7 +178,7 @@ main()
       		pthread_attr_setinheritsched(&(attributes[i]), PTHREAD_EXPLICIT_SCHED);
       
 		// set the attributes to set the SCHED_FIFO policy (pthread_attr_setschedpolicy)
-			pthread_attr_setschedpolicy(&(attributes[i]), SCHED_FIFO);
+		pthread_attr_setschedpolicy(&(attributes[i]), SCHED_FIFO);
 
 		//properly set the parameters to assign the priority inversely proportional 
 		//to the period
@@ -221,8 +219,6 @@ main()
        		missed_deadlines[i] = 0;
     	}
 
-	printf("About to start creating threads here...");
-	fflush(stdout);
 
 	// create all threads(pthread_create)
   	iret[0] = pthread_create( &(thread_id[0]), &(attributes[0]), task1, NULL);
