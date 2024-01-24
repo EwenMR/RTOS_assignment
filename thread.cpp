@@ -38,6 +38,7 @@ void *task4( void *);
 void do_nothing();
 void scrivere(int fd, const char *msg);
 int aprire_driver();
+void open_write(const char *str);
 
 // initialization of mutexes and conditions (only for aperiodic scheduling)
 pthread_mutex_t mutex_task_4 = PTHREAD_MUTEX_INITIALIZER;
@@ -292,6 +293,7 @@ void task2_code()
 
 	open_write(str_1);
 
+	pthread_cond_signal(&cond_task_4);
 	do_nothing();
 
 	open_write(str_2);
@@ -363,7 +365,6 @@ void task4_code()
 
 	open_write(str_1);
 
-	pthread_cond_signal(&cond_task_4);
 	do_nothing();
 
 	open_write(str_2);
