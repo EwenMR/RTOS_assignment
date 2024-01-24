@@ -151,7 +151,7 @@ main()
 	//check the sufficient conditions: if they are not satisfied, exit  
   	if (U > Ulub)
     	{
-      		// printf("\n U=%lf Ulub=%lf Non schedulable Task Set", U, Ulub);
+      		printf("\n U=%lf Ulub=%lf Non schedulable Task Set", U, Ulub);
       		return(-1);
     	}
   	printf("\n U=%lf Ulub=%lf Scheduable Task Set", U, Ulub);
