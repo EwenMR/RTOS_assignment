@@ -22,3 +22,28 @@ Real Time Operating System assignment 2024
 (5) The write system call writes on the kernel log the string received from the thread. A typical output of the system, when reading the kernel log, can be the following [11][2[11]2][3[11]3][4]. This sequence clearly shows that some threads can be preempted by other threads (if this does not happen, try to increase the computational time of longer tasks).
 
 (6) Finally, modify the code of all tasks to use semaphores. Every thread now protects all its operations (i) to (v) with a semaphore, which prevents other tasks from preempting. Specifically, use semaphores with a priority ceiling access protocol.  
+
+
+## Installing and Running
+
+Clone the repository:
+```bash
+git clone https://github.com/EwenMR/RTOS_assignment.git
+```
+
+Then enter root user:
+```bash
+sudo su
+```
+Then you want to 'make' the directory:
+```bash
+make
+```
+
+Then:
+```bash
+insmod simple.ko
+mknod /dev/simple c <majornumber> 0
+g++ -lpthread thread.cpp -o thread
+./thread
+```
